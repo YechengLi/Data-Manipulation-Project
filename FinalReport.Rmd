@@ -1,0 +1,521 @@
+---
+title: "Pilgrim case study"
+author: "Yecheng Li, Doris Long, Vera Wang, Jikun Zhou"
+date: "November 27, 2017"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+```{r setup, include=FALSE}
+# Installing & Loading Packages
+library(rmarkdown)
+library(ggplot2)
+library(psych)
+knitr::opts_chunk$set(echo = TRUE)
+options(width=80)
+
+```
+
+### The URL for our Team GitHub repository is 
+### link: https://github.com/Brandeis-BUS111-FinalProject/Pilgrim-Final.git
+### 1. What is Pilgrim Bank's data problem? What is the final managerial objective? 
+
+Pilgrim Bank's senior management is currently reconsidering bank's internet strategy -- whether to charge service fee on online service to discourage the using of online channel, or to offer lower service to engage customers using online channel. To make the decision, the key point is to answer if online customers are better. In our report, we described the dataset received from Erica Dorstamp, and further conducted correlation and regression test to see whether online customers could bring higher profit or secure higher retention rate for Pilgrim. If the analysis shows online customers are indeed better customers, the senior management would decide to offer rebates or lower the service charges for customers using online banking. Other way, Pilgrim could raise the service charge to buffer the cost of offering online banking service. 
+
+However, the current dataset mainly has two problems:
+
+(1)	Lack of specific information about the calculation of profit: As online banking might reduce cost of serving a customer and increase fee revenue by engaging customers' transaction with convenience, it is crucial to analyze related factors in the equation of profit calculation. There exists omitted variable bias because some detailed information of profit calculation is missing.
+
+(2)	Contains missing values: At least 20% of the consumer information are incomplete and missed one or more information in 'Age', 'Income', or 'Billpay.
+
+
+### 2. Description of Variables
+'ID' simply means the customer ID, which is an identity, and it is a nominal variable.
+
+'District' is also a nominal variable because it represents geographic regions that are assigned into different numbers (1100,1200, and 1300), but there is no implied order among these categories.
+
+'Profit' indicates how much the bank makes from customer and is calculated using the formula 
+(Balance in Deposit Accounts)*(Net Interest Spread) + (Fees) + (Interest from Loans) - (Cost to serve)
+Since profit is obtained through mathematical calculation, it is a ratio variable. 
+
+'Age' is an ordinal variable. The age of customer are divided into 7 categories, starting from 1 to 7. '1' represents customers younger than 15 years old, following by '2' represents 15-24 years old. '3' represents 25-34 years old, '4' is for a range between 35 and 44 years old,  '5' is for a range between 45 and 54 years old. '6' represents people age from 55 to 64 years old, and '7' represents 65 years and older. It is an ordered category.
+
+The ordered variable 'Income' utilizes number 1 to 9 to represent individual customer's income levels. '1' represents a range of income less than $15,000. '2' means an income range of $15,000 - $19,999. '3' means an income range of $20,000-$ 29,999. '4' means an income range of $30,000-$39,999. '5' means an income range of $40,000-$49,999. '6' means an income range of $50,000-$74,999. '7' means an income range of $75,000-$99,999. '8' means an income range of $100,000-$124,999, and '9' represents income level of $125,000 and more. Since the intervals of this variable are not equal, 'Income' is an ordinal variable. 
+
+'Tenure' indicates the length of years that consumers stay with the bank as of 1999. It is a ratio value because it can be calculated with mathematical calculation. 
+
+'Online' is a binary variable indicating whether a Pilgrim customer uses online banking or not. 0 represents the customer does not use online banking and 1 represents he or she does. The variable 'Online' is also a nominal variable because they just represent two individual categories that cannot be ranked or compared.
+
+'BillPay' is a binary variable indicating whether or not a customer uses Pilgrim's online bill pay service. It is also a nominal variable. 0 represents there has been transactions in the customer's account, while 1 represents there is no transaction at all.
+
+### 3. Handling of the missing data
+
+Among 31,634 data points in the dataset, nearly 20% missed of values of 'Age' and 'Income'. Simply deleting this portion of would significantly decrease our sample size. Instead, we replaced missing value with the median value of 1999 'Age' and 'Income', which is 4 and 6 respectively. 
+
+```{r}
+# Read the given dataset 
+consumerDB = read.csv("dataset.csv") ### read the given dataset 
+# Check who stay with the bank in 2000: 1 means that consumers stay with the bank, 
+# while 0 means that consumers leave the bank
+consumerDB$retention =1
+consumerDB[is.na(consumerDB$X0Online) & is.na(consumerDB$X0Billpay),]$retention = 0
+# Find the median for 1999 Age and Income
+AgeMedian_1999 = median(consumerDB$X9Age,na.rm = TRUE) 
+IncomeMedian_1999 = median(consumerDB$X9Inc,na.rm = TRUE) 
+# Present the data for 1999 Age/Income median
+AgeMedian_1999
+IncomeMedian_1999
+
+consumerDB[is.na(consumerDB$X9Age),]$X9Age = 4
+consumerDB[is.na(consumerDB$X9Inc),]$X9Inc = 6
+
+```
+
+### 4. Statistic Summary
+
+#### (1) Statistics Summary for 1999 Data
+This summary gives the mean, median, standard deviation, min, max and range for 1999 Profit, Age, Income, Online, Bill Pay, and Tenure.
+```{r}
+# Sort the concumerDB and get a Table that sepcifically contains data for 1999
+statsTable1999= consumerDB[,2:6]
+X9Billpay = consumerDB[,10]
+statsTable1999= cbind(statsTable1999,X9Billpay)
+Summary_Table=t(describe(statsTable1999))
+Summary_Table = round(Summary_Table,2) 
+Summary_Table_New = Summary_Table[c(3:5,8:10),c(1:6)]
+Summary_Table_New
+```
+#### (2) Visual Description of Statistic Summary
+### a.Histogram of Age
+From the boxplot between age and profit, we can tell the median profit in category '7' is much higher, followed by '6', '5', '3', '4', '2', and '1'. The range of category '7'  from 1st quartile and the 3rd quartile is also the largest, followed by '6', '5', '3', '4', '2', and '1'. 
+```{r,fig.width=5, fig.height=4}
+# This is a boxplot graph for Profit& Age 
+boxplot(X9Profit~X9Age, data = consumerDB, 
+        main = "Box-Plot of Profit Distribution by Age in 1999",
+        xlab = "Age", ylab = "Profit") # Sets X and Y Axes 
+
+```
+
+### b.Histogram of Income
+From the boxplot between income and profit, the median profit in category '9' is the highest, followed by '8', '7', '5', '6', '4', '3', '2', and '1'If we look at the median of profit level of all income categories, there is a slight curvilinear relationship between income and profit. The higher income is, the higher profit the bank can generate from the customer, and slope is getting larger. 
+```{r,fig.width=5, fig.height=4}
+# This is a boxplot graph for Profit& Income  
+boxplot(X9Profit~X9Inc, data = consumerDB, 
+        main = "Box-Plot of Profit Distribution by Income in 1999",  ## Sets Title to Plot
+        xlab = "Income", ylab = "Profit") # Sets X and Y Axes 
+
+```
+
+### c.Histogram of Profits  
+In 1999, Pilgrim Bank earned total $3,527,276 from from 31,634 customers. The profit ranged from $-221 to $2071, averagely $111.5 per customer with a standard deviation of 272.8 and median of $9, which indicates this variable is far stretched out. As the X-axis represented the profit range from -200 to 2000 in dollar, and Y-axis represented the frequency of each profit amount. According to the Histogram of Profit, we can see the fluctuation among each customers; it might due to individual differences on consuming habit, or the complexity formula to calculate profit. Generally, Pilgrim Bank earn positive profit from about 60% of customers.
+```{r,fig.width=5, fig.height=4}
+# Histogram of Profits
+hist(consumerDB$X9Profit, main = "Histogram of Profits in 1999", 
+     xlab = "Profits", ylab = "Count (#)", col = "green", n = 200)
+```
+
+### (3) Data Patterns Summary
+From the above table, we can see a positive relation between the income levels and uses of online banking and electronic billpay. The more income one customer earns, the more likely that customer will use online banking and electronic billpay. We can interpret this as customers may find a easier way to manage their money from online banking and electronic billpay. 
+
+Age groups and the uses of online banking and electronic billpay, on the contrary, appears to be a negative relation. The younger one customer is, the more likely that customers will use online banking and electronic billpay. 
+
+The similar relationships can be applied to the retention rate as well. The higher the income level and age group, the more likely customers will stay with the bank.
+
+In conclusion, customers in income group 9 are more likely to use online banking and electronic billpay and to stay with the bank. Customers in age group 7 are more likely to use online banking and electronic billpay and to stay with the bank.
+
+
+```{r}
+# 1999 Income with online and billpay customer
+summary_Income_1999_Online = table(consumerDB$X9Inc,consumerDB$X9Online)
+# summary_Income_1999
+summary_Income_1999_Online = round(summary_Income_1999_Online/rowSums(summary_Income_1999_Online),2)
+summary_Income_1999_Online
+summary_Income_1999_Billpay = table(consumerDB$X9Inc,consumerDB$X9Billpay)
+summary_Income_1999_Billpay = round(summary_Income_1999_Billpay/rowSums(summary_Income_1999_Billpay),2)
+summary_Income_1999_Billpay
+```
+
+```{r}
+# 1999 Age with online and billpay customer
+summary_Age_1999_Online = table(consumerDB$X9Age,consumerDB$X9Online)
+# summary_Age_1999     
+summary_Age_1999_Online = round(summary_Age_1999_Online/rowSums(summary_Age_1999_Online),2)
+summary_Age_1999_Online
+summary_Age_1999_Billpay = table(consumerDB$X9Age,consumerDB$X9Billpay)
+# summary_Age_1999     
+summary_Age_1999_Billpay = round(summary_Age_1999_Billpay/rowSums(summary_Age_1999_Billpay),2)
+summary_Age_1999_Billpay
+```
+```{r}
+retention_1999 = table(consumerDB$X9Inc,consumerDB$retention)
+retention_1999 = round(retention_1999/rowSums(retention_1999),2)
+retention_1999
+
+retention_Age = table(consumerDB$X9Age,consumerDB$retention)
+retention_Age = round(retention_Age/rowSums(retention_Age),2)
+retention_Age  
+```
+
+### 5. Mean profitability of years 1999 and 2000 customers using online banking or electronic billpay
+To compare the mean profitability of customers for the years 1999 and 2000 by their enrollment status in online banking or electronic billpay, we conducted four independent t-test. 
+
+(1) Compare the profitability of 1999's customer using online banking or not. 
+Null hypothesis: Mean profit for year 1999's customers using online banking = Mean profit for year 1999's customers not using online banking  
+Alternative Hypothesis: Mean profit for year 1999's customers using online banking != Mean profit for year 1999's customers not using online banking 
+
+
+```{r}
+t.test(consumerDB[consumerDB$X9Online == 0,]$X9Profit, consumerDB[consumerDB$X9Online ==1,]$X9Profit) 
+```
+According to the independent t-test, we failed reject the null hypothesis, p-value = 0.2254 > 0.05 at the 95% confidence interval. Then we can conclude that there is no significant difference between the mean profit for year 1999's customers using online banking and mean profit for year 1999's customers not using online banking. That is to say, using online banking in 1999 did not increase or decrease the profit significantly.
+
+(2) Compare the profitability of 1999's customer using electronic billpay or not. 
+Null hypothesis: Mean profit for year 1999's customers using electronic billpay = Mean profit for year 1999's customers not using electronic billpay
+Alternative Hypothesis: Mean profit for year 1999's customers using electronic billpay != Mean profit for year 1999's customers not using electronic billpay
+
+
+```{r}
+t.test(consumerDB[consumerDB$X9Billpay == 0,]$X9Profit, consumerDB[consumerDB$X9Billpay ==1,]$X9Profit)
+```
+According to the independent t-test, we rejected the null hypothesis, p-value = 6.097e-09 < 0.05 at the 95% confidence interval. Then we can conclude that there is significant difference between the mean profit for year 1999's customers using electronic billpay and mean profit for year 1999's customers not using electronic billpay. That is to say, using electronic billpay in 1999 did have significant effect on customers' profit.
+
+
+```{r}
+t.test(consumerDB[consumerDB$X9Billpay == 0,]$X9Profit, consumerDB[consumerDB$X9Billpay ==1,]$X9Profit, alternative = "less", var.equal =  TRUE)
+```
+According to the two sample t-test, we reject the null hypothesis, p-value = 5.064e-13 < 0.05 at the 95% confidence interval. Then we can conclude that the mean profit for year 1999's customer using electronic bill is more than customers not using electronic billpay.
+
+
+(3) Compare the profitability of 2000's customer using online banking or not.
+
+Null hypothesis: Mean profit for year 2000's customers using online banking = Mean profit for year 2000's customers not using online banking  
+
+Alternative Hypothesis: Mean profit for year 2000's customers using online banking != Mean profit for year 2000's customers not using online banking 
+
+```{r}
+t.test(consumerDB[consumerDB$X0Online == 0,]$X0Profit, consumerDB[consumerDB$X0Online == 1,]$X0Profit)
+```
+According to the indepedent t-test, we rejected the null hypothesis, p-value = 0.0001685 < 0.05 at the 95% confidence interval. Then we can conclude that there is significant difference between the mean profit for year 2000's custumers using online banking and mean profit for year 2000's custumers not using online banking. That is to say, using online banking in 2000 did have significant effect on customers' profit.
+
+```{r}
+t.test(consumerDB[consumerDB$X0Online == 0,]$X0Profit, consumerDB[consumerDB$X0Online == 1,]$X0Profit, alternative = "less", var.equal =  TRUE)
+```
+According to the two sample t-test, we reject the null hypothesis, p-value = 0.0002716 < 0.05 at the 95% confidence interval. Then we can conclude that the mean profit for year 2000's customer using online banking is more than customers not using online banking.
+
+
+(4) Compare the profitability of 2000's customer using electronic billpay or not. 
+
+Null hypothesis: Mean profit for year 2000's customers using electronic billpay = Mean profit for year 2000's customers not using electronic billpay
+Alternative Hypothesis: Mean profit for year 2000's customers using electronic billpay != Mean profit for year 2000's customers not using electronic billpay
+
+
+```{r}
+t.test(consumerDB[consumerDB$X0Billpay == 0,]$X0Profit, consumerDB[consumerDB$X9Billpay == 1,]$X0Profit) 
+```
+According to the independent t-test, we rejected the null hypothesis, p-value = 1.289e-08 < 0.05 at the 95% confidence interval. Then we can conclude that there is significant difference between the mean profit for year 2000's customers using electronic billpay and mean profit for year 2000's customers not using electronic billpay. That is to say, using electronic billpay in 2000 did have significant effect on customers' profit.
+
+```{r}
+t.test(consumerDB[consumerDB$X0Billpay == 0,]$X0Profit, consumerDB[consumerDB$X9Billpay == 1,]$X0Profit, alternative = "less", var.equal =  TRUE)
+```
+According to the two sample t-test, we reject the null hypothesis, p-value = 0.0002716 < 0.05 at the 95% confidence interval. Then we can conclude that the mean profit for year 2000's customer using billpay is more than customers not billpay.
+
+
+### 6. Transition matrix
+```{r}
+# Note that there is no such a type in both 1999 and 2000 
+# Online = 0 & Billpay = 1
+# Therefore, we didn't show this type here
+consumerDB$status_1999 = 1
+consumerDB[consumerDB$X9Online==1&consumerDB$X9Billpay==0,]$status_1999 = 2
+#consumerDB[consumerDB$X9Online==0&consumerDB$X9Billpay==1,]$status_1999 = NONE
+consumerDB[consumerDB$X9Online==1&consumerDB$X9Billpay==1,]$status_1999 = 3
+
+consumerDB$status_2000 = 1
+consumerDB[consumerDB$X9Online==1&consumerDB$X9Billpay==0,]$status_2000 = 2
+consumerDB[consumerDB$X9Online==1&consumerDB$X9Billpay==1,]$status_2000 = 3
+consumerDB[is.na(consumerDB$X0Online)&is.na(consumerDB$X0Billpay),]$status_2000 = 4
+rowNames = c("1999 Type 1","1999 Type 2","1999 Type 3")
+TransitionMatrix = table(consumerDB$status_1999,consumerDB$status_2000)
+TransitionMatrix
+round(prop.table(TransitionMatrix,1),3)
+```
+Type 1 represents customers with no online account and no billpay; 
+Type 2 represents customers with online account but no billpay; 
+Type 3 represents customers with both online account and billpay; 
+Type 4 represents those customers leave the bank. 
+
+So 16.8% of those customers with no online account and no billpay in 1999 leave the bank in 2000; 14% of those customers with online account but no billpay in 1999 leave the bank in 2000; and 15.2% of those customers with both online account and billpay in 1999 leave the bank in 2000. Although there is no significant differences among these percentages, the small discrepancy shows that those who have no online account and no billpay in 1999 have the higher possibility to leave the bank. On the other hand, customers who use online accounts are more likely to stay with the bank. Therefore, promoting usage of online accounts will increase the retention rate.
+
+### 7. Regression analysis
+
+```{r}
+lm_profit_Online_Billpay = lm(X9Profit ~ X9Online+X9Billpay, data = consumerDB)
+summary(lm_profit_Online_Billpay)
+```
+A regression was calculated to see the the use of online banking and billpay has any effect on profit in year 1999. Using the online banking will decrease profit by 6.619 unit. The use of billpay will increase profit by 91.240 unit. When customers do not use online banking or billpay service, the estimated profit mean is 110.786.
+
+The coefficients for X9Online and X9Billpay are significant. That is saying, there is significant difference on customer profitability between the use of the online banking&billpay and not using the online banking& billpay. R square is 0.001661, meaning that 0.16% of the variance in profit can be explain by using Online banking and billpay. Adjusted R-squared is 0.001597, which is used for testing a goodness-of-fit. Adjusted R-squared is a modified version of R-squared that has been adjusted for the number of predictors in this model. The adjusted R-squared increases only if the new predictors improves the model more than would be expected by chance. It decreases when a predictor improves the model by less than expected by chance.
+
+```{r}
+lm_retention_Online_Billpay = lm(retention ~ X9Online+X9Billpay, data = consumerDB)
+summary(lm_retention_Online_Billpay)
+```
+A regression was calculated to see the the use of online channel and billpay has any effect on tenure in year 1999. Using the online service could increase the average tenure length by 0.028106 year. Using the billpay will decrease tenure length by 0.011407 year. When customers do not use online banking service, the estimated tenure mean is 0.831785 year.
+
+The coefficients for X9Online and X9Billpay are significant.That is saying, there is significant difference of retention between the use of online banking& billpay and not using online banking& billpay. R square is 0.0005608, meaning that 0.05% of the retention can be explain by using Online banking. Adjusted R-squared is 0.0004976, which is used for testing a goodness-of-fit. Adjusted R-squared is a modified version of R-squared that has been adjusted for the number of predictors in this model. The adjusted R-squared increases only if the new predictors improves the model more than would be expected by chance. It decreases when a predictor improves the model by less than expected by chance.
+
+ 
+### 8. Profit Models and Retention Model 
+ 
+```{r}
+# Profit Models 
+# Note: We omitted the summary for Online, Age, Inc and District and only kept the best one
+# In question 7, lm_profit_Online_Billpay is our base model
+lm_profit_Age = lm(X9Profit ~ factor(X9Age) + X9Online * factor(X9Age)
+                   + X9Billpay * factor(X9Age), data = consumerDB)
+
+lm_profit_Inc = lm(X9Profit ~ factor(X9Age) + factor(X9Inc) 
+                   + X9Online * factor(X9Age) + X9Online * factor(X9Inc) 
+                   + X9Billpay  *factor(X9Age) + X9Billpay * factor(X9Inc), data = consumerDB)
+
+lm_profit_Tenure = lm(X9Profit ~ factor(X9Age) + factor(X9Inc) 
+                      + X9Online * factor(X9Age) + X9Online * factor(X9Inc) 
+                      + X9Billpay * factor(X9Age) + X9Billpay * factor(X9Inc) 
+                      + X9Tenure * factor(X9Age) + X9Tenure * factor(X9Inc), data = consumerDB)
+lm_profit_District = lm(X9Profit ~ factor(X9Age) + factor(X9Inc) + factor(X9District)
+                     + X9Online * factor(X9Age) + X9Online * factor(X9Inc)
+                     + X9Tenure * factor(X9Age) + X9Tenure * factor(X9Inc)
+                     + X9Billpay * factor(X9Age) + X9Billpay * factor(X9Inc),  data = consumerDB)
+# District is the best model that we found, so the summary of District is presented here
+summary(lm_profit_District)
+ 
+```
+
+Our best model for profitability prediction is the District model. The summary for this regression is presented.The intercept, 1999Age, Income level, District 1200, and tenure (from Age level 3-7) are significant. 
+Analysis for coefficient,
+
+For example, when a customer starts to use online banking, the expected 1999Profit will be -54.6 (intercept), when others are all zero and when hold other variable constant. Using the coefficient of factor(X9Age)4:X9Tenure as an example, 6.0760 means that the profit difference between age group 1 and age group 4 is 6.076, if we hold other constant. Among those statistically insignificant coefficient, we will interpret the significant one. For example, factor(X9Inc)2:X9Online =-36.0803. It means the profit difference between a customer in Income Level 2 with online banking account and a customer in income level 1 with online banking is -36.08, eliminating other effects on age, distrct, billpay, or tenure.  
+The R-square is 0.07066, which means that 7.07% of 1999Profit can be explained by the variations in x variables.
+
+
+### (4) Major Statistics Summary
+```{r}
+set.seed(12345678) 
+# Creating Trainning, Validation and Test Sets
+randOrder = order(runif(nrow(consumerDB)))
+training.data = subset(consumerDB,randOrder < .9 * nrow(consumerDB))
+validation.data =  subset(consumerDB,randOrder >= .9*nrow(consumerDB) & 
+                            randOrder < .95*nrow(consumerDB))
+test.data = subset(consumerDB,randOrder >= .95 * nrow(consumerDB))
+```
+We first created a subset by randomly choosing 5% from the original 1999 year's data points. This is used as the validation for the following model we created. 5% of the data will be the test dataset, while the 90% of the data will be the training dataset.
+
+
+```{r}
+# Prediction errors among different profit models
+# Model lm_profit_Online and Billpay
+predicted.profit1 = predict(lm_profit_Online_Billpay, validation.data)
+prediction.error1 = sqrt(mean((predicted.profit1-validation.data$X9Profit)^2))
+# Model lm_profit_Age
+predicted.profit2 = predict(lm_profit_Age, validation.data)
+prediction.error2 = sqrt(mean((predicted.profit2-validation.data$X9Profit)^2))
+# Model lm_profit_Inc
+predicted.profit3 = predict(lm_profit_Inc, validation.data)
+prediction.error3 = sqrt(mean((predicted.profit3-validation.data$X9Profit)^2))
+# Model lm_profit_Tenure
+predicted.profit4 = predict(lm_profit_Tenure, validation.data)
+prediction.error4 = sqrt(mean((predicted.profit4-validation.data$X9Profit)^2))
+# Model lm_profit_District
+predicted.profit5 = predict(lm_profit_District, validation.data)
+prediction.error5 = sqrt(mean((predicted.profit5-validation.data$X9Profit)^2))
+
+```
+
+
+##### Comparison Table for Profit Models
+```{R}
+# Creating a comparison table for profit models
+comparison.table.profit = matrix(c(summary(lm_profit_Online_Billpay)$adj.r.square, 
+            AIC(lm_profit_Online_Billpay), BIC(lm_profit_Online_Billpay), prediction.error1, 
+            summary(lm_profit_Age)$adj.r.square, AIC(lm_profit_Age), BIC(lm_profit_Age), 
+            prediction.error2,
+            summary(lm_profit_Inc)$adj.r.square, AIC(lm_profit_Inc), BIC(lm_profit_Inc), 
+            prediction.error3, 
+            summary(lm_profit_Tenure)$adj.r.square, AIC(lm_profit_Tenure), BIC(lm_profit_Tenure), 
+            prediction.error4,
+            summary(lm_profit_District)$adj.r.square, AIC(lm_profit_District), 
+            BIC(lm_profit_District), prediction.error5), nrow = 5, ncol = 4, byrow = TRUE)
+comparison.table.profit = round(comparison.table.profit,6)
+colnames(comparison.table.profit) = c("Adj.r.square", "AIC", "BIC", "Prediction Error")
+rownames(comparison.table.profit) = c("lm_profit_Online_Billpay", "lm_profit_Age",  
+            "lm_profit_Inc", "lm_profit_Tenure", "lm_profit_District")
+comparison.table.profit 
+```
+We compared the adjusted R-square, AIC, BIC, and Prediction Error. It can tell that the District Model has the highest adjusted R-square (0.068864), lowest AIC (442443.1) and lowest BIC (442969.9), although the prediction error of District is slightly higher that of Tenure model. The lower the AIC, BIC, and Prediction Error, the better the model. The District model has the highest adjusted R square, implying that we chose the numbers of predictors properly. We concluded that the District Profit Model fit the validation subset the best, and so it is the most appropriate Profit Model. 
+
+```{r}
+# Retention Models
+# Note: We omitted the summary for Billpay, Age, and Inc and we only kept the best one.
+# In question 7, lm_retention_Online_Billpay is our base model
+
+lm_retention_Age = lm(retention ~ factor(X9Age) + X9Online * factor(X9Age) + 
+                        X9Billpay * factor(X9Age), data = consumerDB)
+
+lm_retention_Inc = lm(retention ~ factor(X9Age) + factor(X9Inc) 
+                   + X9Online * factor(X9Age) + X9Online * factor(X9Inc) 
+                   + X9Billpay  *factor(X9Age) + X9Billpay * factor(X9Inc), data = consumerDB)
+
+lm_retention_Tenure = lm(retention ~ factor(X9Age) + factor(X9Inc) 
+                      + X9Online * factor(X9Age) + X9Online * factor(X9Inc) 
+                      + X9Billpay * factor(X9Age) + X9Billpay * factor(X9Inc) 
+                      + X9Tenure * factor(X9Age) + X9Tenure * factor(X9Inc), data = consumerDB)
+
+lm_retention_District = lm(retention ~ factor(X9Age) + factor(X9Inc) + factor(X9District)
+                      + X9Online * factor(X9Age) + X9Online * factor(X9Inc) 
+                      + X9Billpay * factor(X9Age) + X9Billpay * factor(X9Inc) 
+                      + X9Tenure * factor(X9Age) + X9Tenure * factor(X9Inc), data = consumerDB)
+
+summary(lm_retention_District)
+```
+First we create a new binary variable called retention. If retention is 0, it means the customers leave the bank. If retention is 1, customers stay in the bank. 
+
+Finally, we add Aga, Inc, Tenure, District along with their interactive terms into the regression. The term intercept is significant. It represent the probability of retention in the base case, where customer is in age group 1, income group 1, and district 1100 and variable Tenure equals to zero. And when a customer starts to use billpay service, holding other base case variable unchanged, the intercept will decrease by 0.28. It means that the probability of retention will decrease by 28%. The coefficient of factor(X9Inc)6:X9Tenure (0.0032) is the difference of the Tenure effect on probability of retention between groupA (income level1& Age level1& do not use online or billpay service, the base case) the groupB (income level6 & Age level1 & do not use online or billpay service). The R-square is 0.1216, which means that 12.16% of Profit can be explained by the variations in Online banking, Age bucket, Income level bucket, online service, billpay service and Tenure.
+
+
+
+```{r}
+# Prediction errors among different retention models
+# Model lm_retention_Online_Billpay
+predicted.retention1 = predict(lm_retention_Online_Billpay, validation.data)
+prediction.error.retention1 = sqrt(mean((predicted.retention1-validation.data$retention)^2))
+# Model lm_retention_Age
+predicted.retention2 = predict(lm_retention_Age, validation.data)
+prediction.error.retention2 = sqrt(mean((predicted.retention2-validation.data$retention)^2))
+# Model lm_retention_Inc
+predicted.retention3 = predict(lm_retention_Inc, validation.data)
+prediction.error.retention3 = sqrt(mean((predicted.retention3-validation.data$retention)^2))
+# Model lm_retention_Tenure
+predicted.retention4 = predict(lm_retention_Tenure, validation.data)
+prediction.error.retention4 = sqrt(mean((predicted.retention4-validation.data$retention)^2))
+# Model lm_retention_District
+predicted.retention5 = predict(lm_retention_District, validation.data)
+prediction.error.retention5 = sqrt(mean((predicted.retention5-validation.data$retention)^2))
+
+```
+We calculated the predicted errors for all retention models, and the prediction error for our final retention Model is 0.347791 To compare the errors from more perspectives, we made the following table.
+
+
+##### Comparison Table for Retention Models
+```{R}
+# Creating a comparison table for retention models
+comparison.table.retention = matrix(c(summary(lm_retention_Online_Billpay)$adj.r.square, 
+              AIC(lm_retention_Online_Billpay), BIC(lm_retention_Online_Billpay),
+              prediction.error.retention1, 
+              summary(lm_retention_Age)$adj.r.square, AIC(lm_retention_Age), 
+              BIC(lm_retention_Age), prediction.error.retention2,
+              summary(lm_retention_Inc)$adj.r.square, AIC(lm_retention_Inc), 
+              BIC(lm_retention_Inc), prediction.error.retention3, 
+              summary(lm_retention_Tenure)$adj.r.square, AIC(lm_retention_Tenure), 
+              BIC(lm_retention_Tenure), prediction.error.retention4,
+              summary(lm_retention_District)$adj.r.square, AIC(lm_retention_District), 
+              BIC(lm_retention_District), prediction.error.retention5), nrow = 5, 
+              ncol = 4, byrow = TRUE)
+
+comparison.table.retention = round(comparison.table.retention,6)
+colnames(comparison.table.retention) = c("Adj.r.square", "AIC", "BIC", "Prediction Error")
+rownames(comparison.table.retention) = c("lm_retention_Online", "lm_retention_Age", 
+         "lm_retention_Inc", "lm_retention_Tenure", "lm_retention_District")
+comparison.table.retention
+```
+We compared the adjusted R-square, AIC, BIC, and Prediction Error. It shows that the our District Online Retention Model has the lowest AIC of 23091.48, greatest Adj.r.square 0.119923, and lowest Prediction Error of 0.347791. Although BIC is slightly higher than the previous model, we would like to choose lm_retention_district as our final prediction model.
+
+### 9. Predicted likelihood of retention
+The following code predicts the likelihood of retention in year 2000.
+```{r}
+Prediction_Retention_1999 = predict(lm_retention_District, consumerDB, se.fit = TRUE)
+hit_rate = data.frame (Prediction_Retention_1999$fit, consumerDB$retention)
+head(hit_rate)
+hit_rate$predicted_retention_sorted = 0
+hit_rate[hit_rate$Prediction_Retention_1999.fit >= 0.5,]$predicted_retention_sorted = 1
+hit_rate$hit_times = 0
+hit_rate[hit_rate$consumerDB.retention == hit_rate$predicted_retention_sorted,]$hit_times = 1
+# create a table with percentage
+round(table(hit_rate$hit_times)/sum(table(hit_rate$hit_times)),3)
+```
+Since the our retention prediction model offers the possibility of a customer's status. If the possibility is greater than .5, we identify this customers as they will stay with the bank; while possibly smaller than .5 as this customer will leave the bank. Then we compare this to the actual data in 2000 year, and we found out that we made the correct prediction for 84% of the dataset. 
+
+
+### 10. Customer profitability
+Database is a subset that only contains 26396 observations and 14 variables. It's a subset from the original dataset. According to the request, Database2000 only contains those observations that don't have any missing data in 2000 Online, 2000 profit and 2000 billpay.
+
+
+
+```{r}
+Database2000 = consumerDB[,c(4,5,6,7,8,9,11,12)]
+Database2000 = Database2000[!is.na(Database2000$X0Online)&!is.na(Database2000$X0Profit)
+                           &!is.na(Database2000$X0Billpay),]
+Database2000$X9Tenure=Database2000$X9Tenure+1
+colnames(Database2000)=c("X9Age","X9Inc","X9Tenure", "X9District","X0Profit",
+                         "X9Online", "X9Billpay","retention")
+
+Prediction_Profit_2000 = predict(lm_profit_Tenure, Database2000)
+Database2000$predicted_profit = Prediction_Profit_2000
+prediction.error.profit = sqrt(mean((Prediction_Profit_2000-Database2000$X0Profit)^2))
+prediction.error.profit
+```
+To test the fitness of our Profit Model and Retention Model, we extracted all the datapoints in year 2000 and the income, age, and district datapoint from year 1999 as the base dataset. Then we used the Profit Model and Retention Model we designed to predict the Profit and Retention Status in year 2000. Comparing the predicted Profit and Retention Status to the actual Profit and Retention Status in 2000. 
+
+According to the result, the prediction error of our Profit Model is 382.795. Meanwhile, 84% of the prediction is correct for our Retention Model, which is pretty accurate. In general, our Profit Model and Retention Model could fairly predict the profit and retention status of Pilgrim Banks' customers.
+
+### 11. Standard error of prediction
+Using the standard error of prediction from the above prediction analysis, construct the 95% confidence interval for each customer's predicted profitability. Assuming Pilgrim Bank's managers know customers' enrollment status at the start of 2000.
+
+```{r}
+predicted.profit = predict(lm_profit_Tenure, test.data, se.fit = TRUE)
+test.data = test.data[,c(4,5,6,7,8,9,11,12)]
+colnames(test.data)=c("X9Age","X9Inc","X9Tenure", "X9District","X0Profit",
+                         "X9Online", "X9Billpay","retention")
+test.data$predicted.profit = predicted.profit$fit
+test.data$se.fit = predicted.profit$se.fit
+# Upper limit of confidence interval for each predicted y
+test.data$upper.limit = test.data$predicted.profit + qnorm(0.975)*test.data$se.fit
+head(test.data$upper.limit)
+# Lower limit of confidence interval for each predicted y
+test.data$lower.limit = test.data$predicted.profit - qnorm(0.975)*test.data$se.fit
+head(test.data$lower.limit)
+# Upper limit on total profits is the sum of upper limits for individual profits
+TotalProfitUpperLimit = sum(test.data$upper.limit)
+TotalProfitUpperLimit
+# Lower limit on total profits is the sum of lower limits for individual profits
+TotalProfitlowerLimit = sum(test.data$lower.limit)
+TotalProfitlowerLimit
+```
+In order to estimate the total profit range, we run our Profit Model and extracted 95% of the dataset's profit of the lower and upper limit. After we added all the predicted upper limited, we got the highest total profit of 205038.8; and in the same way, we got the lowest total profit of 147825.5 So the range of 2000's profit is from 147825.5 to 205038.8
+
+
+### 12. Summarization and Recommendation
+Our regression of Profit Model and Retention Model shows that when people using online banking, the profit and the retention tend to increase, except for the base cases in different models. It shows that online customers are indeed better customers, and the senior management should offer rebates or lower the service charges for customers using online banking, as these customers will have relative higher possibility to stay with the bank and bring more profit to Pilgrim Bank.
+
+To promote a more efficient recommendation to increase the profitability, we tend to focus more on a very specific groups - customers with high profitability but less likely to stay in the bank in 2001. Here is what we did:
+```{r}
+profitSorted = consumerDB[!is.na(consumerDB$X0Profit),]
+profitMedian = median(profitSorted$X0Profit)
+highProfit = profitSorted[profitSorted$X0Profit >= profitMedian,]
+highProfit = highProfit[,c(4:9,11,12)]
+colnames(highProfit)=c("X9Age","X9Inc","X9Tenure", "X9District","X0Profit",
+                       "X9Online", "X9Billpay","retention")
+predict_retention_2001 = predict(lm_retention_District, highProfit, se.fit = TRUE)
+highProfit$fit = predict_retention_2001$fit
+targetCustomer = highProfit[highProfit$fit <= quantile(highProfit$fit, .25),]
+length(targetCustomer$fit)
+targetProfitPercent = sum(targetCustomer$X0Profit)/sum(profitSorted$X0Profit)
+targetProfitPercent
+targetCustomerPercent = length(targetCustomer$fit)/length(profitSorted$X0Profit)
+targetCustomerPercent
+```
+
+After the segmentation, customers in our target segments represent 13% of the customers who stay with the bank in 2000 and 26% of the total profit in 2000. To make them more profitable for the bank, we would like to use our tired services. For example, we can offer discounts on mortgage rates or higher interest rates on certificates of deposit. Tired service like are aiming to increase them retention in the bank, which, consequently, make them more profitable for the bank.
+
+
+
